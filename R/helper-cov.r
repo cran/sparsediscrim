@@ -16,6 +16,7 @@
 #' @return sample covariance matrix of size \eqn{p \times p}. If \code{diag} is
 #' \code{TRUE}, then a vector of length \code{p} is returned instead.
 cov_mle <- function(x, diag = FALSE) {
+  x <- as.matrix(x)
   n <- nrow(x)
   if (diag) {
     (n - 1) / n * apply(x, 2, var)
@@ -231,6 +232,6 @@ cov_shrink_diag <- function(x, gamma = 1) {
   if (gamma < 0 || gamma > 1) {
     stop("The value of 'gamma' must be between 0 and 1, inclusively.")
   }
-  cov_x <- sparsediscrim:::cov_mle(x)
+  cov_x <- cov_mle(x)
   gamma * cov_x + (1 - gamma) * diag(diag(cov_x))
 }

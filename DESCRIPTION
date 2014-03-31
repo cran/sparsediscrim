@@ -1,24 +1,16 @@
 Package: sparsediscrim
-Title: Sparse Discriminant Analysis
-Version: 0.1.0
-Date: 2013-05-25
+Title: Sparse and Regularized Discriminant Analysis
+Version: 0.2
+Date: 2014-03-31
 Author: John A. Ramey <johnramey@gmail.com>
 Maintainer: John A. Ramey <johnramey@gmail.com>
-Description: A collection of sparse and regularized discriminant
-        analysis methods intended for small-sample, high-dimensional
-        data sets. The package includes the High-Dimensional
-        Regularized Discriminant Analysis classifier.  Furthermore, the
-        package includes several Diagonal Discriminant Analysis
-        methods, which are special cases of the well-known Naive Bayes
-        classifier.
+Description: A collection of sparse and regularized discriminant analysis
+    methods intended for small-sample, high-dimensional data sets. The package
+    features the High-Dimensional Regularized Discriminant Analysis classifier.
 Imports: corpcor, bdsmatrix, mvtnorm
-License: MIT
+License: MIT + file LICENSE
 URL: https://github.com/ramey/sparsediscrim, http://ramhiser.com
-Collate: 'dlda.r' 'dqda.r' 'sdlda.r' 'sdqda.r' 'stein-shrinkage.r'
-        'estimates.r' 'helper-intercept.r' 'data-intraclass.r'
-        'data-block-autocorrelation.r' 'tong-shrinkage.r' 'hdrda.r'
-        'helper-cov.r' 'helper-cv.r' 'helper.r'
-Packaged: 2013-05-25 17:19:33 UTC; johnramey
+Packaged: 2014-03-31 14:25:52 UTC; ramhiser
 NeedsCompilation: no
 Repository: CRAN
-Date/Publication: 2013-05-25 20:04:01
+Date/Publication: 2014-03-31 16:34:04

@@ -1,3 +1,42 @@
+sparsediscrim 0.2
+-----------------
+
+UPDATES
+
+* The High-Dimensional Regularized Discriminant Analysis (HDRDA) classifier from
+  Ramey, Stein, and Young (2014) implemented in `hdrda()` has been revamped to
+  improve its computational performance.
+
+CLASSIFIERS
+
+* `lda_pseudo()` is an implementation of Linear Discriminant Analysis (LDA) with
+  the Moore-Penrose Pseudo-Inverse
+
+* `lda_schafer()` is an implementation of Linear Discriminant Analysis (LDA)
+  using the covariance matrix estimator from Schafer and Strimmer (2005)
+
+* `lda_thomaz()` is an implementation of Linear Discriminant Analysis (LDA)
+  using the covariance matrix estimator from Thomaz, Kitani, and Gillies (2006)
+
+* `mdeb()` is an implementation of the Minimum Distance Empirical Bayesian
+  Estimator (MDEB) classifier from Srivistava and Kubokawa (2007)
+
+* `mdmeb()` is an implementation of the Minimum Distance Rule using Modified
+  Empirical Bayes (MDMEB) classifier from Srivistava and Kubokawa (2007)
+
+* `mdmp()` is an implementation of the Minimum Distance Rule using Moore-Penrose
+  Inverse (MDMP) classifier from Srivistava and Kubokawa (2007)
+
+* `smdlda()` is an implementation of the Shrinkage-mean-based Diagonal Linear
+  Discriminant Analysis (SmDLDA) from Tong, Chen, and Zhao (2012)
+
+* `smdqda()` is an implementation of the Shrinkage-mean-based Diagonal Quadratic
+  Discriminant Analysis (SmDQDA) from Tong, Chen, and Zhao (2012)
+
+MISCELLANEOUS
+
+* Added a summary function for `hdrda` classifiers
+
 sparsediscrim 0.1
 -----------------
 
@@ -10,7 +49,7 @@ NEW FEATURES
 CLASSIFIERS
 
 * `hdrda()` is an implementation of the High-Dimensional Regularized
-  Discriminant Analysis classifier from Ramey, Stein, and Young (2013).
+  Discriminant Analysis classifier from Ramey, Stein, and Young (2014).
 
 * `dlda()` is an implementation of the Diagonal Linear Discriminant Analysis
   classifier from Dudoit, Fridlyand, and Speed (2002).

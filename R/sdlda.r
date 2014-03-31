@@ -45,9 +45,6 @@
 #' (default), then equal probabilities are used. See details.
 #' @param num_alphas the number of values used to find the optimal amount of
 #' shrinkage
-#' @param est_mean the estimator for the class means. By default, we use the
-#' maximum likelihood estimator (MLE). To improve the estimation, we provide the
-#' option to use a shrunken mean estimator proposed by Tong et al. (2012).
 #' @return \code{sdlda} object that contains the trained SDLDA classifier
 #'
 #' @references Dudoit, S., Fridlyand, J., & Speed, T. P. (2002). "Comparison of
@@ -72,13 +69,11 @@ sdlda <- function(x, ...) {
 #' @rdname sdlda
 #' @method sdlda default
 #' @S3method sdlda default
-sdlda.default <- function(x, y, prior = NULL, num_alphas = 101,
-                          est_mean = c("mle", "tong"), ...) {
+sdlda.default <- function(x, y, prior = NULL, num_alphas = 101, ...) {
   x <- as.matrix(x)
   y <- as.factor(y)
 
-  obj <- sparsediscrim:::diag_estimates(x, y, prior, pool = TRUE,
-                                      est_mean = est_mean, ...)
+  obj <- diag_estimates(x, y, prior, pool = TRUE)
 
   # Calculates the shrinkage-based estimator of the pooled covariance matrix.
   obj$var_shrink <- var_shrinkage(
@@ -104,21 +99,20 @@ sdlda.default <- function(x, y, prior = NULL, num_alphas = 101,
 #' @rdname sdlda
 #' @method sdlda formula
 #' @S3method sdlda formula
-sdlda.formula <- function(formula, data, prior = NULL, num_alphas = 101,
-                          est_mean = c("mle", "tong"), ...) {
+sdlda.formula <- function(formula, data, prior = NULL, num_alphas = 101, ...) {
   # The formula interface includes an intercept. If the user includes the
   # intercept in the model, it should be removed. Otherwise, errors and doom
   # happen.
   # To remove the intercept, we update the formula, like so:
   # (NOTE: The terms must be collected in case the dot (.) notation is used)
-  formula <- sparsediscrim:::no_intercept(formula, data)
+  formula <- no_intercept(formula, data)
   
   mf <- model.frame(formula = formula, data = data)
   x <- model.matrix(attr(mf, "terms"), data = mf)
   y <- model.response(mf)
 
-  est <- sdlda.default(x = x, y = y, prior = prior, num_alphas = num_alphas,
-                       est_mean = est_mean, ...)
+  est <- sdlda.default(x = x, y = y, prior = prior, num_alphas = num_alphas)
+
   est$call <- match.call()
   est$formula <- formula
   est
