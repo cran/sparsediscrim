@@ -25,7 +25,7 @@
 #' to each class. Otherwise, \code{prior} should be a vector with the same length
 #' as the number of classes in \code{y}. The \code{prior} probabilties should be
 #' nonnegative and sum to one.
-#' 
+#'
 #' @param x matrix containing the training data. The rows are the sample
 #' observations, and the columns are the features.
 #' @param y vector of class labels for each training observation
@@ -46,11 +46,11 @@
 diag_estimates <- function(x, y, prior = NULL, pool = FALSE,
                            est_mean = c("mle", "tong")) {
   obj <- list()
-	obj$labels <- y
-	obj$N <- length(y)
-	obj$p <- ncol(x)
-	obj$groups <- levels(y)
-	obj$num_groups <- nlevels(y)
+  obj$labels <- y
+  obj$N <- length(y)
+  obj$p <- ncol(x)
+  obj$groups <- levels(y)
+  obj$num_groups <- nlevels(y)
 
   est_mean <- match.arg(est_mean)
 
@@ -112,7 +112,7 @@ diag_estimates <- function(x, y, prior = NULL, pool = FALSE,
 #' of features, etc.
 #'
 #' This function computes the common estimates and ancillary information used in
-#' all of the regularized discriminant classifiers in the \code{regdiscrim}
+#' all of the regularized discriminant classifiers in the \code{sparsediscrim}
 #' package.
 #'
 #' The matrix of training observations are given in \code{x}. The rows of \code{x}
@@ -132,7 +132,7 @@ diag_estimates <- function(x, y, prior = NULL, pool = FALSE,
 #' to each class. Otherwise, \code{prior} should be a vector with the same length
 #' as the number of classes in \code{y}. The \code{prior} probabilties should be
 #' nonnegative and sum to one.
-#' 
+#'
 #' @param x matrix containing the training data. The rows are the sample
 #' observations, and the columns are the features.
 #' @param y vector of class labels for each training observation
@@ -144,11 +144,11 @@ diag_estimates <- function(x, y, prior = NULL, pool = FALSE,
 #' information
 regdiscrim_estimates <- function(x, y, cov = TRUE, prior = NULL) {
   obj <- list()
-	obj$labels <- y
-	obj$N <- length(y)
-	obj$p <- ncol(x)
-	obj$groups <- levels(y)
-	obj$num_groups <- nlevels(y)
+  obj$labels <- y
+  obj$N <- length(y)
+  obj$p <- ncol(x)
+  obj$groups <- levels(y)
+  obj$num_groups <- nlevels(y)
 
   # Error Checking
   if (!is.null(prior)) {

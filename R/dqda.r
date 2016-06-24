@@ -60,8 +60,7 @@ dqda <- function(x, ...) {
 }
 
 #' @rdname dqda
-#' @method dqda default
-#' @S3method dqda default
+#' @export
 dqda.default <- function(x, y, prior = NULL, ...) {
   x <- as.matrix(x)
   y <- as.factor(y)
@@ -71,8 +70,8 @@ dqda.default <- function(x, y, prior = NULL, ...) {
   # Creates an object of type 'dqda' and adds the 'match.call' to the object
   obj$call <- match.call()
   class(obj) <- "dqda"
-	
-	obj
+
+  obj
 }
 
 #' @param formula A formula of the form \code{groups ~ x1 + x2 + ...} That is,
@@ -81,8 +80,8 @@ dqda.default <- function(x, y, prior = NULL, ...) {
 #' @param data data frame from which variables specified in \code{formula} are
 #' preferentially to be taken.
 #' @rdname dqda
-#' @method dqda formula
-#' @S3method dqda formula
+#' @importFrom stats model.frame model.matrix model.response
+#' @export
 dqda.formula <- function(formula, data, prior = NULL, ...) {
   # The formula interface includes an intercept. If the user includes the
   # intercept in the model, it should be removed. Otherwise, errors and doom
@@ -90,7 +89,7 @@ dqda.formula <- function(formula, data, prior = NULL, ...) {
   # To remove the intercept, we update the formula, like so:
   # (NOTE: The terms must be collected in case the dot (.) notation is used)
   formula <- no_intercept(formula, data)
-  
+
   mf <- model.frame(formula = formula, data = data)
   x <- model.matrix(attr(mf, "terms"), data = mf)
   y <- model.response(mf)
@@ -105,12 +104,8 @@ dqda.formula <- function(formula, data, prior = NULL, ...) {
 #'
 #' Summarizes the trained DQDA classifier in a nice manner.
 #'
-#' @keywords internal
 #' @param x object to print
 #' @param ... unused
-#' @rdname dqda
-#' @method print dqda
-#' @S3method print dqda
 #' @export
 print.dqda <- function(x, ...) {
   cat("Call:\n")
@@ -129,10 +124,8 @@ print.dqda <- function(x, ...) {
 #'
 #' The DQDA classifier is a modification to QDA, where the off-diagonal elements
 #' of the pooled sample covariance matrix are set to zero.
-#' 
+#'
 #' @rdname dqda
-#' @method predict dqda
-#' @S3method predict dqda
 #' @export
 #'
 #' @param object trained DQDA object
@@ -144,26 +137,35 @@ print.dqda <- function(x, ...) {
 #' Data," Journal of the American Statistical Association, 97, 457, 77-87.
 #' @return list predicted class memberships of each row in newdata
 predict.dqda <- function(object, newdata, ...) {
-	if (!inherits(object, "dqda"))  {
-		stop("object not of class 'dqda'")
-	}
-	if (is.vector(newdata)) {
+  if (!inherits(object, "dqda"))  {
+    stop("object not of class 'dqda'")
+  }
+  if (is.vector(newdata)) {
     newdata <- matrix(newdata, nrow = 1)
   }
 
-	scores <- apply(newdata, 1, function(obs) {
-		sapply(object$est, function(class_est) {
-			with(class_est, sum((obs - xbar)^2 / var + log(var)) + log(prior))
-		})
-	})
-	
-	if (is.vector(scores)) {
-		min_scores <- which.min(scores)
-	} else {
-		min_scores <- apply(scores, 2, which.min)
-	}
+  scores <- apply(newdata, 1, function(obs) {
+    sapply(object$est, function(class_est) {
+      with(class_est, sum((obs - xbar)^2 / var + log(var)) + log(prior))
+    })
+  })
 
-	class <- factor(object$groups[min_scores], levels = object$groups)
-	
-	list(class = class, scores = scores)
+  if (is.vector(scores)) {
+    min_scores <- which.min(scores)
+  } else {
+    min_scores <- apply(scores, 2, which.min)
+  }
+
+  # Posterior probabilities via Bayes Theorem
+  means <- lapply(object$est, "[[", "xbar")
+  covs <- lapply(object$est, "[[", "var")
+  priors <- lapply(object$est, "[[", "prior")
+  posterior <- posterior_probs(x=newdata,
+                               means=means,
+                               covs=covs,
+                               priors=priors)
+
+  class <- factor(object$groups[min_scores], levels = object$groups)
+
+  list(class = class, scores = scores, posterior = posterior)
 }

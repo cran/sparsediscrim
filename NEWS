@@ -1,3 +1,63 @@
+sparsediscrim 0.2.3
+-------------------
+
+UPDATES
+
+* Fixed an issue with the HDRDA classifier's `predict` function. The posterior
+  probabilities did not sum to 1 because they were unnormalized. #34
+
+* Fixed another issue with the HDRDA classifier's `predict` function, where the
+  class names were incorrect when predicting a single observation. #34
+
+* Improved docs throughout the package to pass `R CMD CHECK`. #35
+
+sparsediscrim 0.2.2
+-------------------
+
+UPDATES
+
+* The `predict` function now returns posterior-probability estimates for each
+  classifier.
+
+* The object returned by `cv_hdrda()` can be plotted. A heatmap is produced
+  using `ggplot2` to illustrate the cross-validation error rate for each
+  tuning-parameter pair considered.
+
+* The `predict` function for the HDRDA classifier is now substantially faster
+  when classifying a large number of observations. #33
+
+sparsediscrim 0.2.1
+-------------------
+
+UPDATES
+
+* The cross-validation helper function `cv_hdrda()` for the HDRDA classifier now
+  returns a trained classifier rather than the optimal model.
+
+* `cv_hdrda()` also has an optional `verbose` argument to dump summary
+  information while the cross-validation is running.
+
+FIXES
+
+* Fixed issue with classifiers' documentation not appearing in help index. #26
+
+* Better handling of HDRDA when its tuning parameters are both 0.
+
+* Corrected calculation of W_k and Q_k in HDRDA classifier.
+
+MISCELLANEOUS
+
+* Added unit tests for HDRDA.
+
+* Can now specify population means in `generate_blockdiag()`.
+
+* Added unit tests for `generate_blockdiag()`.
+
+* Updated **man** docs with roxygen2 4.0.
+
+* Added `log_determinant()` helper function to calculate the log-determinant of
+  a matrix.
+
 sparsediscrim 0.2
 -----------------
 

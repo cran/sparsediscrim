@@ -10,6 +10,7 @@
 #' In this case, we return a vector of length \code{p} instead.
 #'
 #' @export
+#' @importFrom stats var cov
 #' @param x data matrix with \code{n} observations and \code{p} feature vectors
 #' @param diag logical value. If TRUE, assumes the population covariance matrix
 #' is diagonal. By default, we assume that \code{diag} is \code{FALSE}.
@@ -33,6 +34,7 @@ cov_mle <- function(x, diag = FALSE) {
 #' multivariate normal populations having equal covariance matrices.
 #'
 #' @export
+#' @importFrom stats cov
 #' @param x data matrix with \code{n} observations and \code{p} feature vectors
 #' @param y class labels for observations (rows) in \code{x}
 #' @return pooled sample covariance matrix of size \eqn{p \times p}
@@ -227,7 +229,7 @@ rda_cov <- function(x, y, lambda = 1) {
 #'
 #' @references Hastie, T., Tibshirani, R., and Friedman, J. (2008), "The
 #' Elements of Statistical Learning: Data Mining, Inference, and Prediction,"
-#' 2nd edition. \url{http://www-stat.stanford.edu/~tibs/ElemStatLearn/}
+#' 2nd edition. \url{http://statweb.stanford.edu/~tibs/ElemStatLearn/}
 cov_shrink_diag <- function(x, gamma = 1) {
   if (gamma < 0 || gamma > 1) {
     stop("The value of 'gamma' must be between 0 and 1, inclusively.")

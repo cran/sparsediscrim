@@ -59,8 +59,7 @@ dlda <- function(x, ...) {
 }
 
 #' @rdname dlda
-#' @method dlda default
-#' @S3method dlda default
+#' @export
 dlda.default <- function(x, y, prior = NULL, ...) {
   x <- as.matrix(x)
   y <- as.factor(y)
@@ -70,8 +69,8 @@ dlda.default <- function(x, y, prior = NULL, ...) {
   # Creates an object of type 'dlda' and adds the 'match.call' to the object
   obj$call <- match.call()
   class(obj) <- "dlda"
-	
-	obj
+
+  obj
 }
 
 #' @param formula A formula of the form \code{groups ~ x1 + x2 + ...} That is,
@@ -80,8 +79,8 @@ dlda.default <- function(x, y, prior = NULL, ...) {
 #' @param data data frame from which variables specified in \code{formula} are
 #' preferentially to be taken.
 #' @rdname dlda
-#' @method dlda formula
-#' @S3method dlda formula
+#' @importFrom stats model.frame model.matrix model.response
+#' @export
 dlda.formula <- function(formula, data, prior = NULL, ...) {
   # The formula interface includes an intercept. If the user includes the
   # intercept in the model, it should be removed. Otherwise, errors and doom
@@ -89,7 +88,7 @@ dlda.formula <- function(formula, data, prior = NULL, ...) {
   # To remove the intercept, we update the formula, like so:
   # (NOTE: The terms must be collected in case the dot (.) notation is used)
   formula <- no_intercept(formula, data)
-  
+
   mf <- model.frame(formula = formula, data = data)
   x <- model.matrix(attr(mf, "terms"), data = mf)
   y <- model.response(mf)
@@ -104,12 +103,8 @@ dlda.formula <- function(formula, data, prior = NULL, ...) {
 #'
 #' Summarizes the trained DLDA classifier in a nice manner.
 #'
-#' @keywords internal
 #' @param x object to print
 #' @param ... unused
-#' @rdname dlda
-#' @method print dlda
-#' @S3method print dlda
 #' @export
 print.dlda <- function(x, ...) {
   cat("Call:\n")
@@ -128,10 +123,8 @@ print.dlda <- function(x, ...) {
 #'
 #' The DLDA classifier is a modification to LDA, where the off-diagonal elements
 #' of the pooled sample covariance matrix are set to zero.
-#' 
+#'
 #' @rdname dlda
-#' @method predict dlda
-#' @S3method predict dlda
 #' @export
 #'
 #' @param object trained DLDA object
@@ -142,26 +135,35 @@ print.dlda <- function(x, ...) {
 #' Data," Journal of the American Statistical Association, 97, 457, 77-87.
 #' @return list predicted class memberships of each row in newdata
 predict.dlda <- function(object, newdata, ...) {
-	if (!inherits(object, "dlda"))  {
-		stop("object not of class 'dlda'")
-	}
-	if (is.vector(newdata)) {
+  if (!inherits(object, "dlda"))  {
+    stop("object not of class 'dlda'")
+  }
+  if (is.vector(newdata)) {
     newdata <- matrix(newdata, nrow = 1)
   }
 
-	scores <- apply(newdata, 1, function(obs) {
-		sapply(object$est, function(class_est) {
-			with(class_est, sum((obs - xbar)^2 / object$var_pool) + log(prior))
-		})
-	})
-	
-	if (is.vector(scores)) {
-		min_scores <- which.min(scores)
-	} else {
-		min_scores <- apply(scores, 2, which.min)
-	}
+  scores <- apply(newdata, 1, function(obs) {
+    sapply(object$est, function(class_est) {
+      with(class_est, sum((obs - xbar)^2 / object$var_pool) + log(prior))
+    })
+  })
 
-	class <- factor(object$groups[min_scores], levels = object$groups)
-	
-	list(class = class, scores = scores)
+  if (is.vector(scores)) {
+    min_scores <- which.min(scores)
+  } else {
+    min_scores <- apply(scores, 2, which.min)
+  }
+
+  # Posterior probabilities via Bayes Theorem
+  means <- lapply(object$est, "[[", "xbar")
+  covs <- replicate(n=object$num_groups, object$var_pool, simplify=FALSE)
+  priors <- lapply(object$est, "[[", "prior")
+  posterior <- posterior_probs(x=newdata,
+                               means=means,
+                               covs=covs,
+                               priors=priors)
+
+  class <- factor(object$groups[min_scores], levels = object$groups)
+
+  list(class = class, scores = scores, posterior = posterior)
 }

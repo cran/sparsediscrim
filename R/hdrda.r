@@ -10,7 +10,7 @@
 #' combination of the covariance-matrix estimators used in the Linear
 #' Discriminant Analysis (LDA) and Quadratic Discriminant Analysis (QDA)
 #' classifiers. For each of the \code{K} classes given in \code{y},
-#' \eqn{(k = 1, \ldots, K)}, we first define this convex combination as 
+#' \eqn{(k = 1, \ldots, K)}, we first define this convex combination as
 #' \deqn{\hat{\Sigma}_k(\lambda) = (1 - \lambda) \hat{\Sigma}_k
 #' + \lambda \hat{\Sigma},}
 #' where \eqn{lambda \in [0, 1]} is the \emph{pooling} parameter. We then
@@ -18,7 +18,7 @@
 #' \deqn{\tilde{\Sigma}_k = \alpha_k \hat{\Sigma}_k(\lambda) + \gamma I_p,}
 #' where \eqn{I_p} is the \eqn{p \times p} identity matrix. The matrix
 #' \eqn{\tilde{\Sigma}_k} is substituted into the HDRDA classifier. See Ramey et
-#' al. (2014) for more details. 
+#' al. (2014) for more details.
 #'
 #' The matrix of training observations are given in \code{x}. The rows of
 #' \code{x} contain the sample observations, and the columns contain the features
@@ -33,10 +33,6 @@
 #' same length as the number of classes in \code{y}. The \code{prior}
 #' probabilties should be nonnegative and sum to one. The order of the prior
 #' probabilties is assumed to match the levels of \code{factor(y)}.
-#'
-#' When \eqn{p < N}, the HDRDA covariance-matrix estimator is singular when
-#' \eqn{(lambda, gamma) = (0, 0)}. In this case, we set \eqn{gamma} to 0.01 to
-#' shrink the estimators slightly to ensure positive-definiteness.
 #'
 #' @export
 #' @references Ramey, J. A., Stein, C. K., and Young, D. M. (2014),
@@ -64,8 +60,7 @@ hdrda <- function(x, ...) {
 }
 
 #' @rdname hdrda
-#' @method hdrda default
-#' @S3method hdrda default
+#' @export
 hdrda.default <- function(x, y, lambda = 1, gamma = 0,
                           shrinkage_type = c("ridge", "convex"), prior = NULL,
                           tol = 1e-6, ...) {
@@ -75,25 +70,12 @@ hdrda.default <- function(x, y, lambda = 1, gamma = 0,
   gamma <- as.numeric(gamma)
   shrinkage_type <- match.arg(shrinkage_type)
 
-  # If p < n, throw warning because it is untested and possibly does not work
-  if (ncol(x) < nrow(x)) {
-    warning("The sample size exceeds the number of features. This is an untested
-             scenario and may not work currently.")
-  }
-
   if (lambda < 0 || lambda > 1) {
     stop("The value for 'lambda' must be between 0 and 1, inclusively.")
   }
 
   if (gamma < 0) {
     stop("The value for 'gamma' must be nonnegative.")
-  }
-
-  # When p < N, the HDRDA covariance-matrix estimator is singular when (lambda,
-  # gamma) = (0, 0). In this case, we set gamma to a small value to shrink the
-  # estimators slightly.
-  if (lambda == 0 && gamma == 0) {
-    gamma <- 0.01
   }
 
   obj <- regdiscrim_estimates(x = x, y = y, cov = FALSE, prior = prior, ...)
@@ -108,6 +90,8 @@ hdrda.default <- function(x, y, lambda = 1, gamma = 0,
   obj$U1 <- cov_pool_eigen$vectors
   obj$q <- length(obj$D_q)
   obj$shrinkage_type <- shrinkage_type
+  obj$lambda <- lambda
+  obj$gamma <- gamma
 
   if (shrinkage_type == "ridge") {
     alpha <- 1
@@ -125,10 +109,6 @@ hdrda.default <- function(x, y, lambda = 1, gamma = 0,
   #   2. Q_k
   #   3. W_k^{-1}
   for (k in seq_len(K)) {
-    # Although 'Gamma_k' is a diagonal matrix, we store only its diagonal
-    # elements.
-    Gamma <- alpha * lambda * obj$D_q + gamma
-    Gamma_inv <- diag(Gamma^(-1))
     X_k <- x_centered[y == levels(y)[k], ]
     n_k <- nrow(X_k)
 
@@ -138,14 +118,36 @@ hdrda.default <- function(x, y, lambda = 1, gamma = 0,
 
     # Transforms the sample mean to the lower dimension
     xbar_U1 <- crossprod(obj$U1, obj$est[[k]]$xbar)
-    
-    # X_k %*% U_1 %*% Gamma^{-1} is computed repeatedly in the equations.
-    # We compute the matrix once and use it where necessary to avoid unnecessary
-    # computations.
-    XU_Gamma_inv <- XU_k %*% Gamma_inv
-    Q <- diag(n_k) + alpha * (1 - lambda) * tcrossprod(XU_Gamma_inv, XU_k)
-    W_inv <- alpha * (1 - lambda) * crossprod(XU_Gamma_inv, solve(Q, XU_Gamma_inv))
-    W_inv <- Gamma_inv - W_inv
+
+    # In the special case that (lambda, gamma) = (0, 0), the improvements to
+    # HDRDA's speed via the Sherman-Woodbury formula are not applicable because
+    # Gamma = 0. In this case, we calculate W_inv directly. If the matrix is
+    # singular, a slight amount of shrinkage is applied.
+    if (lambda == 0 && gamma == 0) {
+      W_k <- cov_mle(XU_k)
+      W_inv <- try(solve_chol(W_k), silent=TRUE)
+
+      if (inherits(W_inv, "try-error")) {
+        W_k <- W_k + diag(0.001, nrow=nrow(W_k), ncol=ncol(W_k))
+        W_inv <- solve_chol(W_k)
+      }
+
+      Gamma <- matrix(0, nrow=obj$q, ncol=obj$q)
+      Q <- diag(n_k)
+    } else {
+      # Although 'Gamma_k' is a diagonal matrix, we store only its diagonal
+      # elements.
+      Gamma <- alpha * lambda * obj$D_q + gamma
+      Gamma_inv <- diag(Gamma^(-1))
+
+      # X_k %*% U_1 %*% Gamma^{-1} is computed repeatedly in the equations.
+      # We compute the matrix once and use it where necessary to avoid
+      # unnecessary computations.
+      XU_Gamma_inv <- XU_k %*% Gamma_inv
+      Q <- diag(n_k) + alpha * (1 - lambda) / n_k * tcrossprod(XU_Gamma_inv, XU_k)
+      W_inv <- alpha * (1 - lambda) / n_k * crossprod(XU_Gamma_inv, solve(Q, XU_Gamma_inv))
+      W_inv <- Gamma_inv - W_inv
+    }
 
     obj$est[[k]]$n_k <- n_k
     obj$est[[k]]$alpha <- alpha
@@ -159,7 +161,7 @@ hdrda.default <- function(x, y, lambda = 1, gamma = 0,
   # Creates an object of type 'hdrda' and adds the 'match.call' to the object
   obj$call <- match.call()
   class(obj) <- "hdrda"
-	
+
   obj
 }
 
@@ -171,8 +173,8 @@ hdrda.default <- function(x, y, lambda = 1, gamma = 0,
 #' @param ... arguments passed from the \code{formula} to the \code{default}
 #' method
 #' @rdname hdrda
-#' @method hdrda formula
-#' @S3method hdrda formula
+#' @importFrom stats model.frame model.matrix model.response
+#' @export
 hdrda.formula <- function(formula, data, ...) {
   # The formula interface includes an intercept. If the user includes the
   # intercept in the model, it should be removed. Otherwise, errors and doom
@@ -180,7 +182,7 @@ hdrda.formula <- function(formula, data, ...) {
   # To remove the intercept, we update the formula, like so:
   # (NOTE: The terms must be collected in case the dot (.) notation is used)
   formula <- no_intercept(formula, data)
-  
+
   mf <- model.frame(formula = formula, data = data)
   x <- model.matrix(attr(mf, "terms"), data = mf)
   y <- model.response(mf)
@@ -195,12 +197,8 @@ hdrda.formula <- function(formula, data, ...) {
 #'
 #' Summarizes the trained hdrda classifier in a nice manner.
 #'
-#' @keywords internal
 #' @param x object to print
 #' @param ... unused
-#' @rdname hdrda
-#' @method print hdrda
-#' @S3method print hdrda
 #' @export
 print.hdrda <- function(x, ...) {
   cat("Call:\n")
@@ -217,6 +215,10 @@ print.hdrda <- function(x, ...) {
   print(x$q)
   cat("Shrinkage type:\n")
   print(x$shrinkage_type)
+  cat("Lambda:\n")
+  print(x$lambda)
+  cat("Gamma:\n")
+  print(x$gamma)
 }
 
 #' Predicts the class membership of a matrix of unlabeled observations with a
@@ -226,8 +228,6 @@ print.hdrda <- function(x, ...) {
 #' (row) of the the matrix given in \code{newdata}.
 #'
 #' @rdname hdrda
-#' @method predict hdrda
-#' @S3method predict hdrda
 #' @export
 #' @param object object of type \code{hdrda} that contains the trained HDRDA
 #' classifier
@@ -245,8 +245,12 @@ predict.hdrda <- function(object, newdata, projected = FALSE, ...) {
   newdata <- as.matrix(newdata)
 
   scores <- sapply(object$est, function(class_est) {
-    # The call to 'as.vector' removes the attributes returned by 'determinant'
-    log_det <- as.vector(determinant(class_est$Q, logarithm = TRUE)$modulus)
+    if (object$lambda == 0 && object$gamma == 0) {
+      # Want: log(det(W_k)) = -log(det(W_k_inv))
+      log_det <- -log_determinant(class_est$W_inv)
+    } else {
+      log_det <- log_determinant(class_est$Q)
+    }
 
     if (projected) {
       # The newdata have already been projected. Yay for speed!
@@ -258,28 +262,31 @@ predict.hdrda <- function(object, newdata, projected = FALSE, ...) {
       # Center the 'newdata' by the class sample mean
       x_centered <- scale(newdata, center = class_est$xbar, scale = FALSE)
 
-      # We calculate the quadratic form explicitly for each observation to prevent
-      # storing a large 'p x p' inverse matrix in memory. However, note that our
-      # approach below increases the number of computations that must be performed
-      # for each observation. For the p >> n case, this hardly matters though.
-      # The quadratic forms lie on the diagonal of the resulting matrix
       U1_x <- crossprod(object$U1, t(x_centered))
 
-      quad_forms <- diag(quadform(class_est$W_inv, U1_x))
+      quad_forms <- apply(U1_x, 2, function(z) {
+        quadform(class_est$W_inv, z)
+      })
     }
-    
+
     quad_forms + log_det - 2 * log(class_est$prior)
   })
 
   if (is.vector(scores)) {
+    # When sapply above returns a vector, the naming is thrown off.
+    # Hence, we rename it to the groups.
+    names(scores) <- object$groups
+
     min_scores <- which.min(scores)
     posterior <- exp(-(scores - min(scores)))
+    posterior <- posterior / sum(posterior)
   } else {
     min_scores <- apply(scores, 1, which.min)
     # Grabbed code to calculate 'posterior' from MASS:::predict.qda, which
     # handles numerical overflow unlike the more direct:
     # exp(scores) / (1 + exp(sum(scores)))
     posterior <- exp(-(scores - apply(scores, 1, min)))
+    posterior <- posterior / rowSums(posterior)
   }
 
   class <- with(object, factor(groups[min_scores], levels = groups))
@@ -295,6 +302,7 @@ predict.hdrda <- function(object, newdata, projected = FALSE, ...) {
 #' The number of cross-validation folds is given in \code{num_folds}.
 #'
 #' @export
+#' @importFrom dplyr arrange
 #' @param x matrix containing the training data. The rows are the sample
 #' observations, and the columns are the features.
 #' @param y vector of class labels for each training observation
@@ -305,15 +313,17 @@ predict.hdrda <- function(object, newdata, projected = FALSE, ...) {
 #' default, a ridge-like shrinkage is applied. If \code{convex} is given, then
 #' shrinkage similar to Friedman (1989) is applied. See Ramey et al. (2014) for
 #' details.
+#' @param verbose If set to \code{TRUE}, summary information will be outputted
+#' as the optimal model is being determined.
 #' @param ... Additional arguments passed to \code{\link{hdrda}}.
 #' @return list containing the HDRDA model that minimizes cross-validation as
 #' well as a \code{data.frame} that summarizes the cross-validation results.
-hdrda_cv <- function(x, y, num_folds = 10, num_lambda = 21, num_gamma = 7,
-                     shrinkage_type = c("ridge", "convex"), ...) {
+hdrda_cv <- function(x, y, num_folds = 10, num_lambda = 21, num_gamma = 8,
+                     shrinkage_type=c("ridge", "convex"), verbose=FALSE, ...) {
   x <- as.matrix(x)
   y <- as.factor(y)
   shrinkage_type <- match.arg(shrinkage_type)
-  
+
   cv_folds <- cv_partition(y = y, num_folds = num_folds)
 
   # The grid of tuning parameters
@@ -323,16 +333,20 @@ hdrda_cv <- function(x, y, num_folds = 10, num_lambda = 21, num_gamma = 7,
   seq_lambda <- seq(0, 1, length = num_lambda)
 
   if (shrinkage_type == "ridge") {
-    seq_gamma <- 10^seq.int(-1, num_gamma - 2)
+    seq_gamma <- c(0, 10^seq.int(-2, num_gamma - 4))
   } else  {
     # shrinkage_type == "convex"
     seq_gamma <- seq(0, 1, length = num_gamma)
   }
 
   tuning_grid <- expand.grid(lambda = seq_lambda, gamma = seq_gamma)
-  tuning_grid <- tuning_grid[do.call(order, tuning_grid), ]
+  tuning_grid <- dplyr::arrange(tuning_grid, lambda, gamma)
 
-  cv_errors <- sapply(cv_folds, function(fold) {
+  cv_errors <- sapply(seq_along(cv_folds), function(fold_i) {
+    if (verbose) {
+      cat("CV Fold: ", fold_i, " of ", num_folds, "\n")
+    }
+    fold <- cv_folds[[fold_i]]
     train_x <- x[fold$training, ]
     train_y <- y[fold$training]
     test_x <- x[fold$test, ]
@@ -353,7 +367,8 @@ hdrda_cv <- function(x, y, num_folds = 10, num_lambda = 21, num_gamma = 7,
         # Updates Gamma, Q, and W_inv for each class in hdrda_out
         # If an error is thrown, we return 'NA'.
         hdrda_updated <- update_hdrda(hdrda_out, lambda, gamma)
-        sum(predict(hdrda_updated, test_x, projected = TRUE)$class != test_y)
+        # Call to predict.hdrda is explicit to pass R CMD CHECK.
+        sum(predict.hdrda(hdrda_updated, test_x, projected = TRUE)$class != test_y)
       }, silent = TRUE)
 
       errors
@@ -361,13 +376,58 @@ hdrda_cv <- function(x, y, num_folds = 10, num_lambda = 21, num_gamma = 7,
     fold_errors
   })
   cv_errors <- rowSums(cv_errors)
+  error_rate <- cv_errors / nrow(x)
 
-  cv_summary <- cbind(tuning_grid, cv_errors)
+  cv_summary <- cbind(tuning_grid, cv_errors, error_rate)
 
   optimal <- which.min(cv_errors)
   lambda <- tuning_grid$lambda[optimal]
   gamma <- tuning_grid$gamma[optimal]
-  list(lambda = lambda, gamma = gamma, cv_summary = cv_summary)
+
+  # Trains a classifier based on optimal model
+  hdrda_out <- hdrda(x=x, y=y, lambda=lambda, gamma=gamma,
+                     shrinkage_type=shrinkage_type)
+
+  # Adds optimal parameters and cv_summary to classifier object
+  hdrda_out$lambda <- lambda
+  hdrda_out$gamma <- gamma
+  hdrda_out$cv_summary <- cv_summary
+  class(hdrda_out) <- c("hdrda_cv", "hdrda")
+
+  hdrda_out
+}
+
+#' Plots a heatmap of cross-validation error grid for a HDRDA classifier object.
+#'
+#' Uses \code{\link[ggplot2]{ggplot}} to plot a heatmap of the training error
+#' grid.
+#'
+#' @param x object to plot
+#' @param ... unused
+#' @export
+#' @importFrom ggplot2 ggplot aes scale_fill_gradient labs scale_x_discrete
+#' @importFrom ggplot2 scale_y_discrete theme labs geom_tile element_blank
+plot.hdrda_cv <- function(x, ...) {
+  cv_summary <- x$cv_summary
+  cv_summary <- within(cv_summary, {
+    lambda <- round(lambda, 3)
+    gamma <- round(gamma, 3)
+  })
+
+  # Fixes NOTE from R CMD CHECK
+  # "no visible binding for global variable 'error_rate'"
+  error_rate <- 1
+
+  p <- ggplot(cv_summary, aes(factor(gamma), factor(lambda)))
+  p <- p + geom_tile(aes(fill=error_rate), colour="white")
+  p <- p + scale_fill_gradient(low="white",
+                               high="steelblue",
+                               name="CV Error Rate")
+  p <- p + labs(x=expression(gamma), y=expression(lambda))
+  p <- p + scale_x_discrete(expand=c(0, 0))
+  p <- p + scale_y_discrete(expand=c(0, 0))
+  p <- p + theme(axis.ticks=element_blank())
+  p
 }
 
 #' Helper function to update tuning parameters for the HDRDA classifier
@@ -377,43 +437,53 @@ hdrda_cv <- function(x, y, num_folds = 10, num_lambda = 21, num_gamma = 7,
 #' expedite cross-validation to examine a large grid of values for \code{lambda}
 #' and \code{gamma}.
 #'
-#' When \eqn{p < N}, the HDRDA covariance-matrix estimator is singular when
-#' \eqn{(lambda, gamma) = (0, 0)}. In this case, we set \eqn{gamma} to 0.01 to
-#' shrink the estimators slightly to ensure positive-definiteness.
-#' 
 #' @param obj a \code{hdrda} object
 #' @param lambda a numeric value between 0 and 1, inclusively
 #' @param gamma a numeric value (nonnegative)
 #' @return a \code{hdrda} object with updated estimates
 update_hdrda <- function(obj, lambda = 1, gamma = 0) {
-  # When p < N, the HDRDA covariance-matrix estimator is singular when (lambda,
-  # gamma) = (0, 0). In this case, we set gamma to a small value to shrink the
-  # estimators slightly.
+  # In the special case that (lambda, gamma) = (0, 0), the improvements to
+  # HDRDA's speed via the Sherman-Woodbury formula are not applicable because
+  # Gamma = 0. In this case, we calculate W_inv directly.
   if (lambda == 0 && gamma == 0) {
-    gamma <- 0.01
+      Gamma <- matrix(0, nrow=obj$q, ncol=obj$q)
+  } else {
+    # NOTE: alpha_k is constant across all classes, so that alpha_k = alpha_1
+    # for all k. As a result, Gamma and Gamma_inv are constant across all k. We
+    # compute both before looping through all K classes.
+    Gamma <- obj$est[[1]]$alpha * lambda * obj$D_q + gamma
+    Gamma_inv <- diag(Gamma^(-1))
   }
-    
-  # NOTE: alpha_k is constant across all classes, so that alpha_k = alpha_1 for
-  # all k. As a result, Gamma and Gamma_inv are constant across all k. We
-  # compute both before looping through all K classes.
-  Gamma <- obj$est[[1]]$alpha * lambda * obj$D_q + gamma
-  Gamma_inv <- diag(Gamma^(-1))
 
   for (k in seq_len(obj$num_groups)) {
-    # X_k %*% U_1 %*% Gamma^{-1} is computed repeatedly in the equations.
-    # We compute the matrix once and use it where necessary to avoid unnecessary
-    # computations.
-    XU_Gamma_inv <- obj$est[[k]]$XU %*% Gamma_inv
-    Q <- diag(obj$est[[k]]$n_k) +
-      obj$est[[k]]$alpha * (1 - lambda) * tcrossprod(XU_Gamma_inv, obj$est[[k]]$XU)
+    n_k <- obj$est[[k]]$n_k
+    if (lambda == 0 && gamma == 0) {
+      Q <- diag(n_k)
 
-    W_inv <- obj$est[[k]]$alpha * (1 - lambda) *
-        crossprod(XU_Gamma_inv, solve(Q, XU_Gamma_inv))
-    W_inv <- Gamma_inv - W_inv
+      W_k <- cov_mle(obj$est[[k]]$XU)
+      W_inv <- try(solve_chol(W_k), silent=TRUE)
+      if (inherits(W_inv, "try-error")) {
+        W_k <- W_k + diag(0.001, nrow=nrow(W_k), ncol=ncol(W_k))
+        W_inv <- solve_chol(W_k)
+      }
+    }
+    else {
+      # X_k %*% U_1 %*% Gamma^{-1} is computed repeatedly in the equations.
+      # We compute the matrix once and use it where necessary to avoid
+      # unnecessary computations.
+      XU_Gamma_inv <- obj$est[[k]]$XU %*% Gamma_inv
+      Q <- diag(n_k) +
+        obj$est[[k]]$alpha * (1 - lambda) / n_k * tcrossprod(XU_Gamma_inv, obj$est[[k]]$XU)
 
+      W_inv <- obj$est[[k]]$alpha * (1 - lambda) / n_k *
+          crossprod(XU_Gamma_inv, solve(Q, XU_Gamma_inv))
+      W_inv <- Gamma_inv - W_inv
+    }
     obj$est[[k]]$Gamma <- Gamma
     obj$est[[k]]$Q <- Q
     obj$est[[k]]$W_inv <- W_inv
   }
+  obj$lambda <- lambda
+  obj$gamma <- gamma
   obj
 }

@@ -67,8 +67,7 @@ sdlda <- function(x, ...) {
 }
 
 #' @rdname sdlda
-#' @method sdlda default
-#' @S3method sdlda default
+#' @export
 sdlda.default <- function(x, y, prior = NULL, num_alphas = 101, ...) {
   x <- as.matrix(x)
   y <- as.factor(y)
@@ -77,18 +76,18 @@ sdlda.default <- function(x, y, prior = NULL, num_alphas = 101, ...) {
 
   # Calculates the shrinkage-based estimator of the pooled covariance matrix.
   obj$var_shrink <- var_shrinkage(
-		N = obj$N,
-		K = obj$num_groups,
-		var_feature = obj$var_pool,
-		num_alphas = num_alphas,
-		t = -1
-	)
-	
+    N = obj$N,
+    K = obj$num_groups,
+    var_feature = obj$var_pool,
+    num_alphas = num_alphas,
+    t = -1
+  )
+
   # Creates an object of type 'sdlda' and adds the 'match.call' to the object
   obj$call <- match.call()
   class(obj) <- "sdlda"
-	
-	obj
+
+  obj
 }
 
 #' @param formula A formula of the form \code{groups ~ x1 + x2 + ...} That is,
@@ -97,8 +96,8 @@ sdlda.default <- function(x, y, prior = NULL, num_alphas = 101, ...) {
 #' @param data data frame from which variables specified in \code{formula} are
 #' preferentially to be taken.
 #' @rdname sdlda
-#' @method sdlda formula
-#' @S3method sdlda formula
+#' @importFrom stats model.frame model.matrix model.response
+#' @export
 sdlda.formula <- function(formula, data, prior = NULL, num_alphas = 101, ...) {
   # The formula interface includes an intercept. If the user includes the
   # intercept in the model, it should be removed. Otherwise, errors and doom
@@ -122,12 +121,8 @@ sdlda.formula <- function(formula, data, prior = NULL, num_alphas = 101, ...) {
 #'
 #' Summarizes the trained SDLDA classifier in a nice manner.
 #'
-#' @keywords internal
 #' @param x object to print
 #' @param ... unused
-#' @rdname sdlda
-#' @method print sdlda
-#' @S3method print sdlda
 #' @export
 print.sdlda <- function(x, ...) {
   cat("Call:\n")
@@ -150,8 +145,6 @@ print.sdlda <- function(x, ...) {
 #' et al.  (2009).
 #' 
 #' @rdname sdlda
-#' @method predict sdlda
-#' @S3method predict sdlda
 #' @export
 #'
 #' @param object trained SDLDA object
@@ -166,27 +159,35 @@ print.sdlda <- function(x, ...) {
 #' Biometrics, 65, 4, 1021-1029.
 #' @return list predicted class memberships of each row in newdata
 predict.sdlda <- function(object, newdata, ...) {
-	if (!inherits(object, "sdlda"))  {
-		stop("object not of class 'sdlda'")
-	}
-	if (is.vector(newdata)) {
+  if (!inherits(object, "sdlda"))  {
+    stop("object not of class 'sdlda'")
+  }
+  if (is.vector(newdata)) {
     newdata <- matrix(newdata, nrow = 1)
   }
 
-	scores <- apply(newdata, 1, function(obs) {
-		sapply(object$est, function(class_est) {
-			with(class_est, sum((obs - xbar)^2 / object$var_shrink) + log(prior))
-		})
-	})
-	
-	if (is.vector(scores)) {
-		min_scores <- which.min(scores)
-	} else {
-		min_scores <- apply(scores, 2, which.min)
-	}
+  scores <- apply(newdata, 1, function(obs) {
+    sapply(object$est, function(class_est) {
+      with(class_est, sum((obs - xbar)^2 / object$var_shrink) + log(prior))
+    })
+  })
 
-	class <- factor(object$groups[min_scores], levels = object$groups)
-	
-	list(class = class, scores = scores)
+  if (is.vector(scores)) {
+    min_scores <- which.min(scores)
+  } else {
+    min_scores <- apply(scores, 2, which.min)
+  }
+
+  # Posterior probabilities via Bayes Theorem
+  means <- lapply(object$est, "[[", "xbar")
+  covs <- replicate(n=object$num_groups, object$var_shrink, simplify=FALSE)
+  priors <- lapply(object$est, "[[", "prior")
+  posterior <- posterior_probs(x=newdata,
+                               means=means,
+                               covs=covs,
+                               priors=priors)
+
+  class <- factor(object$groups[min_scores], levels = object$groups)
+
+  list(class = class, scores = scores, posterior = posterior)
 }
-

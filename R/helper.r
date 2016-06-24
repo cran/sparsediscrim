@@ -10,7 +10,7 @@
 #'
 #' Note that we have adapted the code from:
 #' \url{http://tolstoy.newcastle.edu.au/R/help/05/11/14989.html}
-#' 
+#'
 #' @param A matrix of dimension p x p
 #' @param x vector of length p
 #' @return scalar value
@@ -31,7 +31,7 @@ quadform <- function(A, x) {
 #'
 #' Note that we have adapted the code from:
 #' \url{http://tolstoy.newcastle.edu.au/R/help/05/11/14989.html}
-#' 
+#'
 #' @param A matrix that is p x p and nonsingular
 #' @param x vector of length p
 #' @return scalar value
@@ -72,9 +72,67 @@ center_data <- function(x, y) {
 #' and
 #' \url{http://stats.stackexchange.com/questions/14951/efficient-calculation-of-matrix-inverse-in-r}.
 #'
-#' @export 
+#' @export
 #' @param x symmetric, positive-definite matrix
 #' @return the inverse of \code{x}
 solve_chol <- function(x) {
   chol2inv(chol(x))
+}
+
+#' Computes the log determinant of a matrix.
+#'
+#' @export
+#' @param x matrix
+#' @return log determinant of \code{x}
+log_determinant <- function(x) {
+  # The call to 'as.vector' removes the attributes returned by 'determinant'
+  as.vector(determinant(x, logarithm=TRUE)$modulus)
+}
+
+#' Computes multivariate normal density with a diagonal covariance matrix
+#'
+#' Alternative to \code{mvtnorm::dmvnorm}
+#'
+#' @importFrom stats dnorm
+#' @param x matrix
+#' @param mean vector of means
+#' @param sigma vector containing diagonal covariance matrix
+#' @return multivariate normal density
+dmvnorm_diag <- function(x, mean, sigma) {
+  exp(sum(dnorm(x, mean=mean, sd=sqrt(sigma), log=TRUE)))
+}
+
+#' Computes posterior probabilities via Bayes Theorem under normality
+#'
+#' @importFrom mvtnorm dmvnorm
+#'
+#' @param x matrix of observations
+#' @param means list of means for each class
+#' @param covs list of covariance matrices for each class
+#' @param priors list of prior probabilities for each class
+#' @return matrix of posterior probabilities for each observation
+posterior_probs <- function(x, means, covs, priors) {
+  if (is.vector(x)) {
+    x <- matrix(x, nrow=1)
+  }
+  x <- as.matrix(x)
+
+  posterior <- mapply(function(xbar_k, cov_k, prior_k) {
+    if (is.vector(cov_k)) {
+      post_k <- apply(x, 1, function(obs) {
+        dmvnorm_diag(x=obs, mean=xbar_k, sigma=cov_k)
+      })
+    } else {
+      post_k <- dmvnorm(x=x, mean=xbar_k, sigma=cov_k)
+    }
+    prior_k * post_k
+  }, means, covs, priors)
+
+  if (is.vector(posterior)) {
+    posterior <- posterior / sum(posterior)
+  } else {
+    posterior <- posterior / rowSums(posterior)
+  }
+
+  posterior
 }

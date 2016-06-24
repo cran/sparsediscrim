@@ -53,8 +53,7 @@ mdmp <- function(x, ...) {
 }
 
 #' @rdname mdmp
-#' @method mdmp default
-#' @S3method mdmp default
+#' @export
 mdmp.default <- function(x, y, prior = NULL, eigen_pct = 0.95, ...) {
   x <- as.matrix(x)
   y <- as.factor(y)
@@ -63,9 +62,6 @@ mdmp.default <- function(x, y, prior = NULL, eigen_pct = 0.95, ...) {
 
   cov_eigen <- eigen(obj$cov_pool, symmetric = TRUE)
 
-  # Removes original pooled covariance matrix to reduce memory usage 
-  obj$cov_pool <- NULL
-
   # trace(cov_kept) / trace(cov_pool) \approx eigen_pct
   # as described in the middle of page 125
   kept_evals <- with(cov_eigen,
@@ -73,6 +69,9 @@ mdmp.default <- function(x, y, prior = NULL, eigen_pct = 0.95, ...) {
 
   # Computes the pseudoinverse of the resulting covariance matrix estimator
   evals_inv <- 1 / cov_eigen$values[kept_evals]
+  obj$cov_pool <- with(cov_eigen,
+                       tcrossprod(vectors[, kept_evals] %*% diag(1 / evals_inv),
+                                  vectors[, kept_evals]))
   obj$cov_inv <- with(cov_eigen,
                       tcrossprod(vectors[, kept_evals] %*% diag(evals_inv),
                                  vectors[, kept_evals]))
@@ -80,8 +79,8 @@ mdmp.default <- function(x, y, prior = NULL, eigen_pct = 0.95, ...) {
   # Creates an object of type 'mdmp' and adds the 'match.call' to the object
   obj$call <- match.call()
   class(obj) <- "mdmp"
-	
-	obj
+
+  obj
 }
 
 #' @param formula A formula of the form \code{groups ~ x1 + x2 + ...} That is,
@@ -90,8 +89,8 @@ mdmp.default <- function(x, y, prior = NULL, eigen_pct = 0.95, ...) {
 #' @param data data frame from which variables specified in \code{formula} are
 #' preferentially to be taken.
 #' @rdname mdmp
-#' @method mdmp formula
-#' @S3method mdmp formula
+#' @importFrom stats model.frame model.matrix model.response
+#' @export
 mdmp.formula <- function(formula, data, prior = NULL, ...) {
   # The formula interface includes an intercept. If the user includes the
   # intercept in the model, it should be removed. Otherwise, errors and doom
@@ -99,7 +98,7 @@ mdmp.formula <- function(formula, data, prior = NULL, ...) {
   # To remove the intercept, we update the formula, like so:
   # (NOTE: The terms must be collected in case the dot (.) notation is used)
   formula <- no_intercept(formula, data)
-  
+
   mf <- model.frame(formula = formula, data = data)
   x <- model.matrix(attr(mf, "terms"), data = mf)
   y <- model.response(mf)
@@ -114,12 +113,8 @@ mdmp.formula <- function(formula, data, prior = NULL, ...) {
 #'
 #' Summarizes the trained mdmp classifier in a nice manner.
 #'
-#' @keywords internal
 #' @param x object to print
 #' @param ... unused
-#' @rdname mdmp
-#' @method print mdmp
-#' @S3method print mdmp
 #' @export
 print.mdmp <- function(x, ...) {
   cat("Call:\n")
@@ -143,10 +138,8 @@ print.mdmp <- function(x, ...) {
 #' proposed a modification of the standard maximum likelihood estimator of the
 #' pooled covariance matrix, where only the largest 95% of the eigenvalues and
 #' their corresponding eigenvectors are kept.
-#' 
+#'
 #' @rdname mdmp
-#' @method predict mdmp
-#' @S3method predict mdmp
 #' @export
 #'
 #' @references Srivastava, M. and Kubokawa, T. (2007). "Comparison of
@@ -157,27 +150,36 @@ print.mdmp <- function(x, ...) {
 #' @param ... additional arguments
 #' @return list predicted class memberships of each row in newdata
 predict.mdmp <- function(object, newdata, ...) {
-	if (!inherits(object, "mdmp"))  {
-		stop("object not of class 'mdmp'")
-	}
-	if (is.vector(newdata)) {
+  if (!inherits(object, "mdmp"))  {
+    stop("object not of class 'mdmp'")
+  }
+  if (is.vector(newdata)) {
     newdata <- matrix(newdata, nrow = 1)
   }
 
   # Calculates the discriminant scores for each test observation
-	scores <- apply(newdata, 1, function(obs) {
-		sapply(object$est, function(class_est) {
-			with(class_est, quadform(object$cov_inv, obs - xbar) + log(prior))
-		})
-	})
-	
-	if (is.vector(scores)) {
-		min_scores <- which.min(scores)
-	} else {
-		min_scores <- apply(scores, 2, which.min)
-	}
+  scores <- apply(newdata, 1, function(obs) {
+    sapply(object$est, function(class_est) {
+      with(class_est, quadform(object$cov_inv, obs - xbar) + log(prior))
+    })
+  })
 
-	class <- factor(object$groups[min_scores], levels = object$groups)
-	
-	list(class = class, scores = scores)
+  if (is.vector(scores)) {
+    min_scores <- which.min(scores)
+  } else {
+    min_scores <- apply(scores, 2, which.min)
+  }
+
+  # Posterior probabilities via Bayes Theorem
+  means <- lapply(object$est, "[[", "xbar")
+  covs <- replicate(n=object$num_groups, object$cov_pool, simplify=FALSE)
+  priors <- lapply(object$est, "[[", "prior")
+  posterior <- posterior_probs(x=newdata,
+                               means=means,
+                               covs=covs,
+                               priors=priors)
+
+  class <- factor(object$groups[min_scores], levels = object$groups)
+
+  list(class = class, scores = scores, posterior = posterior)
 }

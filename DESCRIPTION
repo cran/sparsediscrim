@@ -1,16 +1,17 @@
 Package: sparsediscrim
 Title: Sparse and Regularized Discriminant Analysis
-Version: 0.2
-Date: 2014-03-31
+Version: 0.2.3
+Date: 2016-06-21
 Author: John A. Ramey <johnramey@gmail.com>
 Maintainer: John A. Ramey <johnramey@gmail.com>
 Description: A collection of sparse and regularized discriminant analysis
     methods intended for small-sample, high-dimensional data sets. The package
     features the High-Dimensional Regularized Discriminant Analysis classifier.
-Imports: corpcor, bdsmatrix, mvtnorm
+Imports: bdsmatrix, corpcor, dplyr, ggplot2, mvtnorm
 License: MIT + file LICENSE
-URL: https://github.com/ramey/sparsediscrim, http://ramhiser.com
-Packaged: 2014-03-31 14:25:52 UTC; ramhiser
+URL: https://github.com/ramhiser/sparsediscrim, http://ramhiser.com
+RoxygenNote: 5.0.1
 NeedsCompilation: no
+Packaged: 2016-06-24 14:30:36 UTC; ramey
 Repository: CRAN
-Date/Publication: 2014-03-31 16:34:04
+Date/Publication: 2016-06-24 19:14:14

@@ -27,7 +27,7 @@
 #' as the number of classes in \code{y}. The \code{prior} probabilties should be
 #' nonnegative and sum to one.
 #'
-#' @importFrom corpcor invcov.shrink
+#' @importFrom corpcor cov.shrink invcov.shrink
 #' @export
 #'
 #' @param x matrix containing the training data. The rows are the sample
@@ -55,8 +55,7 @@ lda_schafer <- function(x, ...) {
 }
 
 #' @rdname lda_schafer
-#' @method lda_schafer default
-#' @S3method lda_schafer default
+#' @export
 lda_schafer.default <- function(x, y, prior = NULL, ...) {
   x <- as.matrix(x)
   y <- as.factor(y)
@@ -69,13 +68,20 @@ lda_schafer.default <- function(x, y, prior = NULL, ...) {
     scale(x[i, ], center = TRUE, scale = FALSE)
   })
   x_centered <- do.call(rbind, x_centered)
+  obj$cov_pool <- cov.shrink(x_centered, verbose = FALSE, ...)
   obj$cov_inv <- invcov.shrink(x_centered, verbose = FALSE, ...)
+
+  # The `corpcor` package returns a `shrinkage` object, which is actually a
+  # matrix with some attributes.
+  # Coerces the classes to avoid conflicts downstream.
+  class(obj$cov_pool) <- "matrix"
+  class(obj$cov_inv) <- "matrix"
 
   # Creates an object of type 'lda_schafer' and adds the 'match.call' to the object
   obj$call <- match.call()
   class(obj) <- "lda_schafer"
-	
-	obj
+
+  obj
 }
 
 #' @param formula A formula of the form \code{groups ~ x1 + x2 + ...} That is,
@@ -84,8 +90,8 @@ lda_schafer.default <- function(x, y, prior = NULL, ...) {
 #' @param data data frame from which variables specified in \code{formula} are
 #' preferentially to be taken.
 #' @rdname lda_schafer
-#' @method lda_schafer formula
-#' @S3method lda_schafer formula
+#' @importFrom stats model.frame model.matrix model.response
+#' @export
 lda_schafer.formula <- function(formula, data, prior = NULL, ...) {
   # The formula interface includes an intercept. If the user includes the
   # intercept in the model, it should be removed. Otherwise, errors and doom
@@ -93,7 +99,7 @@ lda_schafer.formula <- function(formula, data, prior = NULL, ...) {
   # To remove the intercept, we update the formula, like so:
   # (NOTE: The terms must be collected in case the dot (.) notation is used)
   formula <- no_intercept(formula, data)
-  
+
   mf <- model.frame(formula = formula, data = data)
   x <- model.matrix(attr(mf, "terms"), data = mf)
   y <- model.response(mf)
@@ -108,12 +114,8 @@ lda_schafer.formula <- function(formula, data, prior = NULL, ...) {
 #'
 #' Summarizes the trained lda_schafer classifier in a nice manner.
 #'
-#' @keywords internal
 #' @param x object to print
 #' @param ... unused
-#' @rdname lda_schafer
-#' @method print lda_schafer
-#' @S3method print lda_schafer
 #' @export
 print.lda_schafer <- function(x, ...) {
   cat("Call:\n")
@@ -138,10 +140,8 @@ print.lda_schafer <- function(x, ...) {
 #' matrix is singular, the linear discriminant function is incalculable. Here,
 #' the inverse of the pooled sample covariance matrix is replaced with an
 #' estimator from Schafer and Strimmer (2005).
-#' 
+#'
 #' @rdname lda_schafer
-#' @method predict lda_schafer
-#' @S3method predict lda_schafer
 #' @export
 #'
 #' @references Schafer, J., and Strimmer, K. (2005). "A shrinkage approach to
@@ -150,31 +150,38 @@ print.lda_schafer <- function(x, ...) {
 #' @param object trained lda_schafer object
 #' @param newdata matrix of observations to predict. Each row corresponds to a
 #' new observation.
-#' @param ... additional arguments
 #' @return list predicted class memberships of each row in newdata
 predict.lda_schafer <- function(object, newdata, ...) {
-	if (!inherits(object, "lda_schafer"))  {
-		stop("object not of class 'lda_schafer'")
-	}
-	if (is.vector(newdata)) {
+  if (!inherits(object, "lda_schafer"))  {
+    stop("object not of class 'lda_schafer'")
+  }
+  if (is.vector(newdata)) {
     newdata <- matrix(newdata, nrow = 1)
   }
 
   # Calculates the discriminant scores for each test observation
-	scores <- apply(newdata, 1, function(obs) {
-		sapply(object$est, function(class_est) {
-			with(class_est, quadform(object$cov_inv, obs - xbar) + log(prior))
-		})
-	})
-	
-	if (is.vector(scores)) {
-		min_scores <- which.min(scores)
-	} else {
-		min_scores <- apply(scores, 2, which.min)
-	}
+  scores <- apply(newdata, 1, function(obs) {
+    sapply(object$est, function(class_est) {
+      with(class_est, quadform(object$cov_inv, obs - xbar) + log(prior))
+    })
+  })
 
-	class <- factor(object$groups[min_scores], levels = object$groups)
-	
-	list(class = class, scores = scores)
+  if (is.vector(scores)) {
+    min_scores <- which.min(scores)
+  } else {
+    min_scores <- apply(scores, 2, which.min)
+  }
+
+  # Posterior probabilities via Bayes Theorem
+  means <- lapply(object$est, "[[", "xbar")
+  covs <- replicate(n=object$num_groups, object$cov_pool, simplify=FALSE)
+  priors <- lapply(object$est, "[[", "prior")
+  posterior <- posterior_probs(x=newdata,
+                               means=means,
+                               covs=covs,
+                               priors=priors)
+
+  class <- factor(object$groups[min_scores], levels = object$groups)
+
+  list(class = class, scores = scores, posterior = posterior)
 }
-

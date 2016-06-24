@@ -64,8 +64,7 @@ smdqda <- function(x, ...) {
 }
 
 #' @rdname smdqda
-#' @method smdqda default
-#' @S3method smdqda default
+#' @export
 smdqda.default <- function(x, y, prior = NULL, ...) {
   x <- as.matrix(x)
   y <- as.factor(y)
@@ -76,8 +75,8 @@ smdqda.default <- function(x, y, prior = NULL, ...) {
   # Creates an object of type 'smdqda' and adds the 'match.call' to the object
   obj$call <- match.call()
   class(obj) <- "smdqda"
-	
-	obj
+
+  obj
 }
 
 #' @param formula A formula of the form \code{groups ~ x1 + x2 + ...} That is,
@@ -86,8 +85,8 @@ smdqda.default <- function(x, y, prior = NULL, ...) {
 #' @param data data frame from which variables specified in \code{formula} are
 #' preferentially to be taken.
 #' @rdname smdqda
-#' @method smdqda formula
-#' @S3method smdqda formula
+#' @importFrom stats model.frame model.matrix model.response
+#' @export
 smdqda.formula <- function(formula, data, prior = NULL, ...) {
   # The formula interface includes an intercept. If the user includes the
   # intercept in the model, it should be removed. Otherwise, errors and doom
@@ -110,12 +109,8 @@ smdqda.formula <- function(formula, data, prior = NULL, ...) {
 #'
 #' Summarizes the trained SmDQDA classifier in a nice manner.
 #'
-#' @keywords internal
 #' @param x object to print
 #' @param ... unused
-#' @rdname smdqda
-#' @method print smdqda
-#' @S3method print smdqda
 #' @export
 print.smdqda <- function(x, ...) {
   cat("Call:\n")
@@ -136,8 +131,6 @@ print.smdqda <- function(x, ...) {
 #' of the pooled sample covariance matrix are set to zero.
 #' 
 #' @rdname smdqda
-#' @method predict smdqda
-#' @S3method predict smdqda
 #' @export
 #'
 #' @param object trained SmDQDA object
@@ -149,26 +142,35 @@ print.smdqda <- function(x, ...) {
 #' Data," Journal of the American Statistical Association, 97, 457, 77-87.
 #' @return list predicted class memberships of each row in newdata
 predict.smdqda <- function(object, newdata, ...) {
-	if (!inherits(object, "smdqda"))  {
-		stop("object not of class 'smdqda'")
-	}
-	if (is.vector(newdata)) {
+  if (!inherits(object, "smdqda"))  {
+    stop("object not of class 'smdqda'")
+  }
+  if (is.vector(newdata)) {
     newdata <- matrix(newdata, nrow = 1)
   }
 
-	scores <- apply(newdata, 1, function(obs) {
-		sapply(object$est, function(class_est) {
-			with(class_est, sum((obs - xbar)^2 / var + log(var)) + log(prior))
-		})
-	})
-	
-	if (is.vector(scores)) {
-		min_scores <- which.min(scores)
-	} else {
-		min_scores <- apply(scores, 2, which.min)
-	}
+  scores <- apply(newdata, 1, function(obs) {
+    sapply(object$est, function(class_est) {
+      with(class_est, sum((obs - xbar)^2 / var + log(var)) + log(prior))
+    })
+  })
 
-	class <- factor(object$groups[min_scores], levels = object$groups)
-	
-	list(class = class, scores = scores)
+  if (is.vector(scores)) {
+    min_scores <- which.min(scores)
+  } else {
+    min_scores <- apply(scores, 2, which.min)
+  }
+
+  # Posterior probabilities via Bayes Theorem
+  means <- lapply(object$est, "[[", "xbar")
+  covs <- lapply(object$est, "[[", "var")
+  priors <- lapply(object$est, "[[", "prior")
+  posterior <- posterior_probs(x=newdata,
+                               means=means,
+                               covs=covs,
+                               priors=priors)
+
+  class <- factor(object$groups[min_scores], levels = object$groups)
+
+  list(class = class, scores = scores, posterior = posterior)
 }

@@ -68,8 +68,7 @@ sdqda <- function(x, ...) {
 }
 
 #' @rdname sdqda
-#' @method sdqda default
-#' @S3method sdqda default
+#' @export
 sdqda.default <- function(x, y, prior = NULL, num_alphas = 101, ...) {
   x <- as.matrix(x)
   y <- as.factor(y)
@@ -80,19 +79,19 @@ sdqda.default <- function(x, y, prior = NULL, num_alphas = 101, ...) {
   # covariance matrix. We add these to the corresponding obj$est$var_shrink
   for(k in seq_len(obj$num_groups)) {
     obj$est[[k]]$var_shrink <- var_shrinkage(
-			N = obj$est[[k]]$n,
-			K = 1,
-			var_feature = obj$est[[k]]$var,
-			num_alphas = num_alphas,
-			t = -1
-		)
+      N = obj$est[[k]]$n,
+      K = 1,
+      var_feature = obj$est[[k]]$var,
+      num_alphas = num_alphas,
+      t = -1
+    )
   }
 
   # Creates an object of type 'sdqda' and adds the 'match.call' to the object
   obj$call <- match.call()
   class(obj) <- "sdqda"
-	
-	obj
+
+  obj
 }
 
 #' @param formula A formula of the form \code{groups ~ x1 + x2 + ...} That is,
@@ -100,9 +99,9 @@ sdqda.default <- function(x, y, prior = NULL, num_alphas = 101, ...) {
 #' (non-factor) discriminators.
 #' @param data data frame from which variables specified in \code{formula} are
 #' preferentially to be taken.
+#' @importFrom stats model.frame model.matrix model.response
 #' @rdname sdqda
-#' @method sdqda formula
-#' @S3method sdqda formula
+#' @export
 sdqda.formula <- function(formula, data, prior = NULL, num_alphas = 101, ...) {
   # The formula interface includes an intercept. If the user includes the
   # intercept in the model, it should be removed. Otherwise, errors and doom
@@ -110,7 +109,7 @@ sdqda.formula <- function(formula, data, prior = NULL, num_alphas = 101, ...) {
   # To remove the intercept, we update the formula, like so:
   # (NOTE: The terms must be collected in case the dot (.) notation is used)
   formula <- no_intercept(formula, data)
-  
+
   mf <- model.frame(formula = formula, data = data)
   x <- model.matrix(attr(mf, "terms"), data = mf)
   y <- model.response(mf)
@@ -126,12 +125,8 @@ sdqda.formula <- function(formula, data, prior = NULL, num_alphas = 101, ...) {
 #'
 #' Summarizes the trained SDQDA classifier in a nice manner.
 #'
-#' @keywords internal
 #' @param x object to print
 #' @param ... unused
-#' @rdname sdqda
-#' @method print sdqda
-#' @S3method print sdqda
 #' @export
 print.sdqda <- function(x, ...) {
   cat("Call:\n")
@@ -152,10 +147,8 @@ print.sdqda <- function(x, ...) {
 #' elements of the pooled sample covariance matrix are set to zero. To improve
 #' the estimation of the pooled variances, we use a shrinkage method from Pang
 #' et al.  (2009).
-#' 
+#'
 #' @rdname sdqda
-#' @method predict sdqda
-#' @S3method predict sdqda
 #' @export
 #'
 #' @param object trained SDQDA object
@@ -170,28 +163,36 @@ print.sdqda <- function(x, ...) {
 #' Biometrics, 65, 4, 1021-1029.
 #' @return list predicted class memberships of each row in newdata
 predict.sdqda <- function(object, newdata, ...) {
-	if (!inherits(object, "sdqda"))  {
-		stop("object not of class 'sdqda'")
-	}
-	if (is.vector(newdata)) {
+  if (!inherits(object, "sdqda"))  {
+    stop("object not of class 'sdqda'")
+  }
+  if (is.vector(newdata)) {
     newdata <- matrix(newdata, nrow = 1)
   }
 
-	scores <- apply(newdata, 1, function(obs) {
-		sapply(object$est, function(class_est) {
-			with(class_est, sum((obs - xbar)^2 / var_shrink + log(var_shrink))
+  scores <- apply(newdata, 1, function(obs) {
+    sapply(object$est, function(class_est) {
+      with(class_est, sum((obs - xbar)^2 / var_shrink + log(var_shrink))
            + log(prior))
-		})
-	})
-	
-	if (is.vector(scores)) {
-		min_scores <- which.min(scores)
-	} else {
-		min_scores <- apply(scores, 2, which.min)
-	}
+    })
+  })
 
-	class <- factor(object$groups[min_scores], levels = object$groups)
-	
-	list(class = class, scores = scores)
+  if (is.vector(scores)) {
+    min_scores <- which.min(scores)
+  } else {
+    min_scores <- apply(scores, 2, which.min)
+  }
+
+  # Posterior probabilities via Bayes Theorem
+  means <- lapply(object$est, "[[", "xbar")
+  covs <- lapply(object$est, "[[", "var_shrink")
+  priors <- lapply(object$est, "[[", "prior")
+  posterior <- posterior_probs(x=newdata,
+                               means=means,
+                               covs=covs,
+                               priors=priors)
+
+  class <- factor(object$groups[min_scores], levels = object$groups)
+
+  list(class = class, scores = scores, posterior = posterior)
 }
-

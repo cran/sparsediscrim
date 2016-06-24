@@ -53,8 +53,7 @@ lda_pseudo <- function(x, ...) {
 }
 
 #' @rdname lda_pseudo
-#' @method lda_pseudo default
-#' @S3method lda_pseudo default
+#' @export
 lda_pseudo.default <- function(x, y, prior = NULL, tol = 1e-8, ...) {
   x <- as.matrix(x)
   y <- as.factor(y)
@@ -68,8 +67,9 @@ lda_pseudo.default <- function(x, y, prior = NULL, tol = 1e-8, ...) {
   evals_inv <- rep.int(0, times = length(evals))
   evals_inv[evals > tol] <- 1 / evals[evals > tol]
 
-  # Removes original pooled covariance matrix to reduce memory usage 
-  obj$cov_pool <- NULL
+  # Removes original pooled covariance matrix to reduce memory usage
+  obj$cov_pool <- with(cov_eigen,
+                       tcrossprod(vectors %*% diag(1 / evals_inv), vectors))
 
   obj$cov_inv <- with(cov_eigen,
                       tcrossprod(vectors %*% diag(evals_inv), vectors))
@@ -77,8 +77,8 @@ lda_pseudo.default <- function(x, y, prior = NULL, tol = 1e-8, ...) {
   # Creates an object of type 'lda_pseudo' and adds the 'match.call' to the object
   obj$call <- match.call()
   class(obj) <- "lda_pseudo"
-	
-	obj
+
+  obj
 }
 
 #' @param formula A formula of the form \code{groups ~ x1 + x2 + ...} That is,
@@ -87,8 +87,8 @@ lda_pseudo.default <- function(x, y, prior = NULL, tol = 1e-8, ...) {
 #' @param data data frame from which variables specified in \code{formula} are
 #' preferentially to be taken.
 #' @rdname lda_pseudo
-#' @method lda_pseudo formula
-#' @S3method lda_pseudo formula
+#' @importFrom stats model.frame model.matrix model.response
+#' @export
 lda_pseudo.formula <- function(formula, data, prior = NULL, tol = 1e-8, ...) {
   # The formula interface includes an intercept. If the user includes the
   # intercept in the model, it should be removed. Otherwise, errors and doom
@@ -96,7 +96,7 @@ lda_pseudo.formula <- function(formula, data, prior = NULL, tol = 1e-8, ...) {
   # To remove the intercept, we update the formula, like so:
   # (NOTE: The terms must be collected in case the dot (.) notation is used)
   formula <- no_intercept(formula, data)
-  
+
   mf <- model.frame(formula = formula, data = data)
   x <- model.matrix(attr(mf, "terms"), data = mf)
   y <- model.response(mf)
@@ -111,12 +111,8 @@ lda_pseudo.formula <- function(formula, data, prior = NULL, tol = 1e-8, ...) {
 #'
 #' Summarizes the trained lda_pseudo classifier in a nice manner.
 #'
-#' @keywords internal
 #' @param x object to print
 #' @param ... unused
-#' @rdname lda_pseudo
-#' @method print lda_pseudo
-#' @S3method print lda_pseudo
 #' @export
 print.lda_pseudo <- function(x, ...) {
   cat("Call:\n")
@@ -142,11 +138,8 @@ print.lda_pseudo <- function(x, ...) {
 #' sample covariance matrix with the Moore-Penrose pseudo-inverse, which is
 #' unique and always exists. Note that when the pooled sample covariance matrix
 #' is nonsingular, it is equal to the pseudo-inverse.
-#' 
-#' @rdname lda_pseudo
-#' @method predict lda_pseudo
-#' @S3method predict lda_pseudo
 #'
+#' @rdname lda_pseudo
 #' @export
 #'
 #' @param object trained lda_pseudo object
@@ -155,28 +148,36 @@ print.lda_pseudo <- function(x, ...) {
 #' @param ... additional arguments
 #' @return list predicted class memberships of each row in newdata
 predict.lda_pseudo <- function(object, newdata, ...) {
-	if (!inherits(object, "lda_pseudo"))  {
-		stop("object not of class 'lda_pseudo'")
-	}
-	if (is.vector(newdata)) {
+  if (!inherits(object, "lda_pseudo"))  {
+    stop("object not of class 'lda_pseudo'")
+  }
+  if (is.vector(newdata)) {
     newdata <- matrix(newdata, nrow = 1)
   }
 
   # Calculates the discriminant scores for each test observation
-	scores <- apply(newdata, 1, function(obs) {
-		sapply(object$est, function(class_est) {
-			with(class_est, quadform(object$cov_inv, obs - xbar) + log(prior))
-		})
-	})
-	
-	if (is.vector(scores)) {
-		min_scores <- which.min(scores)
-	} else {
-		min_scores <- apply(scores, 2, which.min)
-	}
+  scores <- apply(newdata, 1, function(obs) {
+    sapply(object$est, function(class_est) {
+      with(class_est, quadform(object$cov_inv, obs - xbar) + log(prior))
+    })
+  })
 
-	class <- factor(object$groups[min_scores], levels = object$groups)
-	
-	list(class = class, scores = scores)
+  if (is.vector(scores)) {
+    min_scores <- which.min(scores)
+  } else {
+    min_scores <- apply(scores, 2, which.min)
+  }
+
+  # Posterior probabilities via Bayes Theorem
+  means <- lapply(object$est, "[[", "xbar")
+  covs <- replicate(n=object$num_groups, object$cov_pool, simplify=FALSE)
+  priors <- lapply(object$est, "[[", "prior")
+  posterior <- posterior_probs(x=newdata,
+                               means=means,
+                               covs=covs,
+                               priors=priors)
+
+  class <- factor(object$groups[min_scores], levels = object$groups)
+
+  list(class = class, scores = scores, posterior = posterior)
 }
-
