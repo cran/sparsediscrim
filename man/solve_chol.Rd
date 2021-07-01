@@ -14,10 +14,9 @@ solve_chol(x)
 the inverse of \code{x}
 }
 \description{
-This often faster than \code{\link{solve}} for larger matrices.
+This often faster than \code{\link[=solve]{solve()}} for larger matrices.
 See, for example:
 \url{http://blog.phytools.org/2012/12/faster-inversion-of-square-symmetric.html}
 and
-\url{http://stats.stackexchange.com/questions/14951/efficient-calculation-of-matrix-inverse-in-r}.
+\url{https://stats.stackexchange.com/questions/14951/efficient-calculation-of-matrix-inverse-in-r}.
 }
-

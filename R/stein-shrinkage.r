@@ -1,6 +1,6 @@
 #' Bias correction function from Pang et al. (2009).
 #'
-#' This function computes the function \eqn{h_{nu, p}(t)} on page 1023 of Pang
+#' This function computes the function \eqn{h_{\nu, p}(t)} on page 1023 of Pang
 #' et al. (2009).
 #'
 #' @param nu a specified constant (nu = N - K)
@@ -12,24 +12,24 @@
 #' @references Pang, H., Tong, T., & Zhao, H. (2009). "Shrinkage-based Diagonal
 #' Discriminant Analysis and Its Applications in High-Dimensional Data,"
 #' Biometrics, 65, 4, 1021-1029.
-#' \url{http://onlinelibrary.wiley.com/doi/10.1111/j.1541-0420.2009.01200.x/abstract}
+#' \url{https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1541-0420.2009.01200.x}
 #' @return the bias correction value
 h <- function(nu, p, t = -1) {
   if (nu <= 0) {
-    stop("The value for 'nu' must be positive.")
+    rlang::abort("The value for 'nu' must be positive.")
   }
 
   if(nu / 2 + t / p > 0) {
     (nu / 2)^t * (gamma(nu / 2) / gamma(nu / 2 + t / p))^p
   } else {
-    warning("The bias-correction has resulted in a NaN. Incrementing nu by 1...")
+    rlang::warn("The bias-correction has resulted in a NaN. Incrementing nu by 1...")
     (nu / 2)^t * (gamma(nu / 2) / gamma((nu + 1) / 2 + t / p))^p
   }
 }
 
 #' Stein Risk function from Pang et al. (2009).
 #'
-#' This function finds the value for \eqn{alpha \in [0,1]} that empirically
+#' This function finds the value for \eqn{\alpha \in [0,1]} that empirically
 #' minimizes the average risk under a Stein loss function, which is given on
 #' page 1023 of Pang et al. (2009).
 #'
@@ -44,13 +44,13 @@ h <- function(nu, p, t = -1) {
 #' @references Pang, H., Tong, T., & Zhao, H. (2009). "Shrinkage-based Diagonal
 #' Discriminant Analysis and Its Applications in High-Dimensional Data,"
 #' Biometrics, 65, 4, 1021-1029.
-#' \url{http://onlinelibrary.wiley.com/doi/10.1111/j.1541-0420.2009.01200.x/abstract}
+#' \url{https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1541-0420.2009.01200.x}
 #' @return list with
 #' \itemize{
-#'   \item \code{alpha}: the alpha that minimizes the average risk under a Stein
+#'   \item `alpha`: the alpha that minimizes the average risk under a Stein
 #'    loss function. If the minimum is not unique, we randomly select an
-#'    \code{alpha} from the minimizers.
-#'   \item \code{risk}: the minimum average risk attained.
+#'    `alpha` from the minimizers.
+#'   \item `risk`: the minimum average risk attained.
 #' }
 risk_stein <- function(N, K, var_feature, num_alphas = 101, t = -1) {
   nu <- N - K
@@ -102,7 +102,7 @@ risk_stein <- function(N, K, var_feature, num_alphas = 101, t = -1) {
 #' @references Pang, H., Tong, T., & Zhao, H. (2009). "Shrinkage-based Diagonal
 #' Discriminant Analysis and Its Applications in High-Dimensional Data,"
 #' Biometrics, 65, 4, 1021-1029.
-#' \url{http://onlinelibrary.wiley.com/doi/10.1111/j.1541-0420.2009.01200.x/abstract}
+#' \url{https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1541-0420.2009.01200.x}
 #' @return a vector of the shrunken variances for each feature.
 var_shrinkage <- function(N, K, var_feature, num_alphas = 101, t = -1) {
   nu <- N - K

@@ -6,12 +6,7 @@
 \usage{
 \method{print}{lda_schafer}(x, ...)
 }
-\arguments{
-\item{x}{object to print}
-
-\item{...}{unused}
-}
 \description{
 Summarizes the trained lda_schafer classifier in a nice manner.
 }
-
+\keyword{internal}

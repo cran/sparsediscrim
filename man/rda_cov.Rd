@@ -7,8 +7,9 @@
 rda_cov(x, y, lambda = 1)
 }
 \arguments{
-\item{x}{matrix containing the training data. The rows are the sample
-observations, and the columns are the features.}
+\item{x}{Matrix or data frame containing the training data. The rows are the
+sample observations, and the columns are the features. Only complete data are
+retained.}
 
 \item{y}{vector of class labels for each training observation}
 
@@ -21,10 +22,9 @@ given in \code{y}
 \description{
 For the classes given in the vector \code{y}, this function calculates the
 class covariance-matrix estimators employed in the HDRDA classifier,
-implemented in \code{\link{hdrda}}.
+implemented in \code{\link[=rda_high_dim]{rda_high_dim()}}.
 }
 \references{
 Ramey, J. A., Stein, C. K., and Young, D. M. (2013),
 "High-Dimensional Regularized Discriminant Analysis."
 }
-

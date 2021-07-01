@@ -22,10 +22,9 @@ efficient manner. Let \code{x} be a real vector of length \code{p}, and let
 }
 \details{
 A naive way to compute the quadratic form is to explicitly write
-\code{t(x) \%*\% solve(A) \%*\% x}, but for large \code{p}, this operation is
+\verb{t(x) \\\%*\\\% solve(A) \\\%*\\\% x}, but for large \code{p}, this operation is
 inefficient. We provide a more efficient method below.
 
 Note that we have adapted the code from:
-\url{http://tolstoy.newcastle.edu.au/R/help/05/11/14989.html}
+\url{https://stat.ethz.ch/pipermail/r-help/2005-November/081940.html}
 }
-

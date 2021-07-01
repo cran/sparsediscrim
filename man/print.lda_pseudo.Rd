@@ -6,12 +6,7 @@
 \usage{
 \method{print}{lda_pseudo}(x, ...)
 }
-\arguments{
-\item{x}{object to print}
-
-\item{...}{unused}
-}
 \description{
 Summarizes the trained lda_pseudo classifier in a nice manner.
 }
-
+\keyword{internal}

@@ -6,12 +6,7 @@
 \usage{
 \method{print}{lda_thomaz}(x, ...)
 }
-\arguments{
-\item{x}{object to print}
-
-\item{...}{unused}
-}
 \description{
 Summarizes the trained lda_thomaz classifier in a nice manner.
 }
-
+\keyword{internal}

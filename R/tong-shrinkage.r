@@ -8,13 +8,13 @@
 #' @references Tong, T., Chen, L., and Zhao, H. (2012), "Improved Mean
 #' Estimation and Its Application to Diagonal Discriminant Analysis,"
 #' Bioinformatics, 28, 4, 531-537.
-#' \url{http://bioinformatics.oxfordjournals.org/content/28/4/531.long}
-#' @param x a matrix with \code{n} rows and \code{p} columns.
-#' @param r_opt the shrinkage coefficient. If \code{NULL} (default), we calculate
+#' \url{https://academic.oup.com/bioinformatics/article/28/4/531/211887}
+#' @param x a matrix with `n` rows and `p` columns.
+#' @param r_opt the shrinkage coefficient. If `NULL` (default), we calculate
 #' the shrinkage coefficient with the formula given just above Equation 5 on page
 #' 533 and denoted by \eqn{\hat{r}_{opt}}. We allow the user to specify an
 #' alternative value to investigate better approximations.
-#' @return vector of length \code{p} with the shrunken mean estimator
+#' @return vector of length `p` with the shrunken mean estimator
 tong_mean_shrinkage <- function(x, r_opt = NULL) {
   n <- nrow(x)
   p <- ncol(x)
@@ -45,7 +45,13 @@ tong_mean_shrinkage <- function(x, r_opt = NULL) {
   shrinkage_norm <- sum(centered_xbars^2 / diag_S)
 
   # Finally, we calculate the shrunken mean given in Equation 6.
-  grand_mean + (1 - r_opt / shrinkage_norm) * centered_xbars
+  if (shrinkage_norm == 0) {
+    shrunken_mean <- xbar
+  } else {
+    shrunken_mean <- grand_mean + (1 - r_opt / shrinkage_norm) * centered_xbars
+  }
+
+  shrunken_mean
 }
 
   

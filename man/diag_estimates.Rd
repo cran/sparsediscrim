@@ -4,16 +4,17 @@
 \alias{diag_estimates}
 \title{Computes estimates and ancillary information for diagonal classifiers}
 \usage{
-diag_estimates(x, y, prior = NULL, pool = FALSE, est_mean = c("mle",
-  "tong"))
+diag_estimates(x, y, prior = NULL, pool = FALSE, est_mean = c("mle", "tong"))
 }
 \arguments{
-\item{x}{matrix containing the training data. The rows are the sample
-observations, and the columns are the features.}
+\item{x}{Matrix or data frame containing the training data. The rows are the
+sample observations, and the columns are the features. Only complete data are
+retained.}
 
-\item{y}{vector of class labels for each training observation}
+\item{y}{Vector of class labels for each training observation. Only complete
+data are retained.}
 
-\item{prior}{vector with prior probabilities for each class. If NULL
+\item{prior}{Vector with prior probabilities for each class. If NULL
 (default), then equal probabilities are used. See details.}
 
 \item{pool}{logical value. If TRUE, calculates the pooled sample variances
@@ -46,7 +47,8 @@ The length of \code{y} should match the number of rows in \code{x}.
 
 An error is thrown if a given class has less than 2 observations because the
 variance for each feature within a class cannot be estimated with less than 2
-observations.
+observations. If other data have zero variances, these will be removed with
+a warning.
 
 The vector, \code{prior}, contains the \emph{a priori} class membership for
 each class. If \code{prior} is NULL (default), the class membership
@@ -59,6 +61,5 @@ nonnegative and sum to one.
 Tong, T., Chen, L., and Zhao, H. (2012), "Improved Mean
 Estimation and Its Application to Diagonal Discriminant Analysis,"
 Bioinformatics, 28, 4, 531-537.
-\url{http://bioinformatics.oxfordjournals.org/content/28/4/531.long}
+\url{https://academic.oup.com/bioinformatics/article/28/4/531/211887}
 }
-

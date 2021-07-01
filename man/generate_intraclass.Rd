@@ -25,9 +25,9 @@ intraclass covariance matrix. Must equal the length of \code{n}.}
 \value{
 named list with elements:
 \itemize{
-  \item \code{x}: matrix of observations with \code{n} rows and \code{p}
+\item \code{x}: matrix of observations with \code{n} rows and \code{p}
 columns
-  \item \code{y}: vector of class labels that indicates class membership for
+\item \code{y}: vector of class labels that indicates class membership for
 each observation (row) in \code{x}.
 }
 }
@@ -48,11 +48,11 @@ The intraclass covariance matrix for the \eqn{k}th class is defined as:
 where \eqn{J_p} is the \eqn{p \times p} matrix of ones and \eqn{I_p} is the
 \eqn{p \times p} identity matrix.
 
-By default, with \eqn{sigma_k^2 = 1}, the diagonal elements of the intraclass
+By default, with \eqn{\sigma_k^2 = 1}, the diagonal elements of the intraclass
 covariance matrix are all 1, while the off-diagonal elements of the matrix
 are all \code{rho}.
 
-The values of \code{rho} must be between \eqn{(1 - p)^(-1)} and 1,
+The values of \code{rho} must be between \eqn{1 / (1 - p)} and 1,
 exclusively, to ensure that the covariance matrix is positive definite.
 
 The number of classes \code{K} is determined with lazy evaluation as the
@@ -71,4 +71,3 @@ data <- generate_intraclass(n = 3:6, p = 4, rho = seq(0, .9, length = 4),
 data$x
 data$y
 }
-

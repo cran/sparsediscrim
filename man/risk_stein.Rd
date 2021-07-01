@@ -23,14 +23,14 @@ paper for more details.}
 \value{
 list with
 \itemize{
-  \item \code{alpha}: the alpha that minimizes the average risk under a Stein
-   loss function. If the minimum is not unique, we randomly select an
-   \code{alpha} from the minimizers.
-  \item \code{risk}: the minimum average risk attained.
+\item \code{alpha}: the alpha that minimizes the average risk under a Stein
+loss function. If the minimum is not unique, we randomly select an
+\code{alpha} from the minimizers.
+\item \code{risk}: the minimum average risk attained.
 }
 }
 \description{
-This function finds the value for \eqn{alpha \in [0,1]} that empirically
+This function finds the value for \eqn{\alpha \in [0,1]} that empirically
 minimizes the average risk under a Stein loss function, which is given on
 page 1023 of Pang et al. (2009).
 }
@@ -38,6 +38,5 @@ page 1023 of Pang et al. (2009).
 Pang, H., Tong, T., & Zhao, H. (2009). "Shrinkage-based Diagonal
 Discriminant Analysis and Its Applications in High-Dimensional Data,"
 Biometrics, 65, 4, 1021-1029.
-\url{http://onlinelibrary.wiley.com/doi/10.1111/j.1541-0420.2009.01200.x/abstract}
+\url{https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1541-0420.2009.01200.x}
 }
-
